@@ -41,6 +41,8 @@ import com.bitchat.android.onboarding.PermissionExplanationScreen
 import com.bitchat.android.onboarding.PermissionManager
 import com.bitchat.android.ui.ChatScreen
 import com.bitchat.android.ui.ChatViewModel
+import com.bitchat.android.pazabit.ui.PazabitScreen
+import com.bitchat.android.pazabit.ui.PazabitViewModel
 import com.bitchat.android.ui.OrientationAwareActivity
 import com.bitchat.android.ui.theme.BitchatTheme
 import com.bitchat.android.wifiaware.WifiAwareController
@@ -67,6 +69,14 @@ class MainActivity : OrientationAwareActivity() {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 @Suppress("UNCHECKED_CAST")
                 return ChatViewModel(application, meshService, unifiedMeshService) as T
+            }
+        }
+    }
+    private val pazabitViewModel: PazabitViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return PazabitViewModel(application, unifiedMeshService) as T
             }
         }
     }
@@ -330,7 +340,7 @@ class MainActivity : OrientationAwareActivity() {
 
                 // Add the callback - this will be automatically removed when the activity is destroyed
                 onBackPressedDispatcher.addCallback(this, backCallback)
-                ChatScreen(viewModel = chatViewModel)
+                PazabitScreen(viewModel = pazabitViewModel)
             }
             
             OnboardingState.ERROR -> {

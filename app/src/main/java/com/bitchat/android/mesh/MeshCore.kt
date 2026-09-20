@@ -549,6 +549,25 @@ class MeshCore(
         }
     }
 
+    fun sendPazabitEvent(payload: ByteArray) {
+        if (payload.isEmpty()) return
+        scope.launch {
+            val packet = BitchatPacket(
+                version = 1u,
+                type = MessageType.PAZABIT_EVENT.value,
+                senderID = MeshPacketUtils.hexStringToByteArray(myPeerID),
+                recipientID = SpecialRecipients.BROADCAST,
+                timestamp = System.currentTimeMillis().toULong(),
+                payload = payload,
+                signature = null,
+                ttl = maxTtl,
+            )
+            val signedPacket = signPacketBeforeBroadcast(packet)
+            dispatchGlobal(RoutedPacket(signedPacket))
+            try { gossipSyncManager.onPublicPacketSeen(signedPacket) } catch (_: Exception) { }
+        }
+    }
+
     private fun sendAuthenticatedPeerState(
         peerID: String,
         state: AuthenticatedPeerState,

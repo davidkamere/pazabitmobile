@@ -101,6 +101,13 @@ class UnifiedMeshService(
         }
     }
 
+    override fun sendPazabitEvent(payload: ByteArray) {
+        when {
+            isBleEnabled() -> bluetooth.sendPazabitEvent(payload)
+            else -> wifiService()?.sendPazabitEvent(payload)
+        }
+    }
+
     override fun sendPrivateMessage(
         content: String,
         recipientPeerID: String,

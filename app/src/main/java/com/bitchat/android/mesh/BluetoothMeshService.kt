@@ -878,6 +878,26 @@ class BluetoothMeshService(private val context: Context) : TransportBridgeServic
         }
     }
 
+    /** Broadcasts a signed structured Pazabit event using the existing BLE relay path. */
+    fun sendPazabitEvent(payload: ByteArray) {
+        if (payload.isEmpty()) return
+        serviceScope.launch {
+            val packet = BitchatPacket(
+                version = 1u,
+                type = MessageType.PAZABIT_EVENT.value,
+                senderID = hexStringToByteArray(myPeerID),
+                recipientID = SpecialRecipients.BROADCAST,
+                timestamp = System.currentTimeMillis().toULong(),
+                payload = payload,
+                signature = null,
+                ttl = MAX_TTL,
+            )
+            val signedPacket = signPacketBeforeBroadcast(packet)
+            broadcastRoutedPacket(RoutedPacket(signedPacket))
+            try { gossipSyncManager.onPublicPacketSeen(signedPacket) } catch (_: Exception) { }
+        }
+    }
+
     /**
      * Send a file over mesh as a broadcast MESSAGE (public mesh timeline/channels).
      */

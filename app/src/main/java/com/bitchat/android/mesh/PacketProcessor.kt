@@ -137,6 +137,7 @@ class PacketProcessor(private val myPeerID: String) {
             MessageType.MESSAGE -> handleMessage(routed)
             MessageType.FILE_TRANSFER -> handleMessage(routed) // treat same routing path; parsing happens in handler
             MessageType.VOICE_FRAME -> validPacket = delegate?.handleVoiceFrame(routed) ?: false
+            MessageType.PAZABIT_EVENT -> validPacket = handlePazabitEvent(routed)
             MessageType.LEAVE -> handleLeave(routed)
             MessageType.FRAGMENT -> handleFragment(routed)
             MessageType.REQUEST_SYNC -> handleRequestSync(routed)
@@ -166,7 +167,14 @@ class PacketProcessor(private val myPeerID: String) {
             packetRelayManager.handlePacketRelay(routed)
         }
     }
-    
+
+    private fun handlePazabitEvent(routed: RoutedPacket): Boolean {
+        return com.bitchat.android.pazabit.protocol.PazabitEventBus.publish(
+            payload = routed.packet.payload,
+            sourcePeerId = routed.packet.senderID.joinToString("") { byte -> "%02x".format(byte) },
+        )
+    }
+
     /**
      * Handle Noise handshake message - SIMPLIFIED iOS-compatible version
      */

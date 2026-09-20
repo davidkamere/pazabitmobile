@@ -1369,6 +1369,10 @@ class WifiAwareMeshService(private val context: Context) : MeshService, Transpor
         meshCore.sendMessage(content, mentions, channel)
     }
 
+    override fun sendPazabitEvent(payload: ByteArray) {
+        meshCore.sendPazabitEvent(payload)
+    }
+
     /**
      * Sends a private encrypted message to a specific peer.
      *

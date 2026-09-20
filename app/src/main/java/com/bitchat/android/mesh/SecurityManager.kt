@@ -258,6 +258,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
                     MessageType.MESSAGE,
                     MessageType.FILE_TRANSFER,
                     MessageType.VOICE_FRAME,
+                    MessageType.PAZABIT_EVENT,
                     MessageType.LEAVE
                 )) {
                 return true

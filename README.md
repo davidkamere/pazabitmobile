@@ -1,69 +1,69 @@
 <img width="256" height="256" alt="icon_128x128@2x" src="https://github.com/user-attachments/assets/90133f83-b4f6-41c6-aab9-25d0859d2a47" />
 
-## bitchat for Android
+## Pazabit Mobile — Offline Threat Reporting System
 
-A decentralized peer-to-peer messaging app with dual transport architecture: local Bluetooth mesh networks for offline communication and internet-based Nostr protocol for global reach. No accounts, no phone numbers, no central servers.
+**Early-stage variant** — A decentralized peer-to-peer threat-reporting system for situations where internet and cellular networks are completely unavailable.
 
-This is the Android implementation of bitchat, fully protocol-compatible with the [iOS version](https://github.com/permissionlesstech/bitchat) for cross-platform mesh communication.
+Built on the bitchat Android mesh architecture, this variant repurposes the Bluetooth LE / Wi-Fi Aware mesh network for submitting and propagating structured threat reports across a local device mesh without any central infrastructure, accounts, or connectivity.
 
-[bitchat.free](http://bitchat.free)
-
-[GitHub Releases](https://github.com/permissionlesstech/bitchat-android/releases)
-
-[<img alt="Get it on Google Play" height="60" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"/>](https://play.google.com/store/apps/details?id=com.bitchat.droid)
-
-## See it in action
-
-<table>
-  <tr>
-    <th>Offline mesh conversation</th>
-    <th>Geohash globe picker</th>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/readme-mesh-chat.png" alt="Active four-peer Bitchat mesh conversation with an image, voice messages, and text messages" width="360"/></td>
-    <td><img src="docs/screenshots/readme-geohash-globe.png" alt="Bitchat geohash location picker showing the whole Earth and geohash grid" width="360"/></td>
-  </tr>
-</table>
+> ⚠️ **Status**: Beginning stages — core mesh transport works; threat-report data model, submission UI, and mesh propagation logic are implemented and functional. Collector-node sync, media attachments, geohash location embedding, and persistence are not yet implemented.
 
 ## License
 
 This project is released into the public domain. See the [LICENSE](LICENSE.md) file for details.
 
-## Features
+## Currently Implemented
 
-- **Dual Transport Architecture**: Bluetooth LE mesh for offline messaging, Nostr relays for internet-based messaging
-- **Location-Based Channels**: Geographic chat rooms using geohash coordinates over Nostr relays
-- **Intelligent Message Routing**: Automatically chooses the best transport, with queuing and retry when a peer is unreachable
-- **End-to-End Encryption**: [Noise Protocol](https://noiseprotocol.org) (XX pattern, X25519 + ChaCha20-Poly1305) for private messages over the mesh
-- **Decentralized Mesh Network**: Automatic peer discovery and multi-hop relay over Bluetooth LE (max 7 hops)
-- **Wi-Fi Aware Transport**: Higher-bandwidth local mesh on supported devices
-- **Channel Chats**: Topic-based group messaging with optional password protection (Argon2id + AES-256-GCM)
-- **IRC-Style Commands**: Familiar `/join`, `/msg`, `/who` style interface
-- **Tor Support**: Built-in Tor (Arti) for private internet connectivity
-- **Emergency Wipe**: Triple-tap to instantly clear all data
-- **Cross-Platform**: Binary protocol compatible with bitchat on iOS and macOS
+- **Structured Threat Reports**: `SafetyEvent.Report` with body text, severity flag (NONE / ONGOING / URGENT), optional private group targeting
+- **Voting**: Up/down votes on reports (`SafetyEvent.Vote`) with real-time tally updates
+- **Escalation**: Urgent or highly-upvoted reports can be escalated to community groups (`SafetyEvent.Escalation`)
+- **Private Groups**: Create named groups (`#tag`) for targeted report delivery (`SafetyEvent.GroupCreated`)
+- **Mesh Propagation**: All events encoded via compact binary codec (`PazabitEventCodec` v1) and sent over the existing bitchat mesh (BLE + Wi-Fi Aware, multi-hop up to 7 hops, Noise XX encryption)
+- **Store-and-Forward (in-memory)**: Reports received from peers are merged into local StateFlow and re-broadcast opportunistically via the mesh relay logic
+- **Compose UI** (`PazabitScreen`): Report composer with flag selector, group picker, live report feed with vote buttons, escalation affordance, private-group drawer
+- **No Accounts / No Servers**: Identity derived from ephemeral Noise static keys; fully decentralized
+
+## Not Yet Implemented
+
+- Persistence across app restarts (StateFlow only)
+- Media attachments (photo/audio) in reports
+- Geohash location embedding in reports (groups are string tags only)
+- Collector-node aggregation and internet/cellular sync when connectivity returns
+- Background duty-cycling optimizations specific to threat-report traffic
+- Nostr/geohash channel fallback (original bitchat Nostr stack remains in codebase but disconnected)
 
 ## Technical Architecture
 
-### Bluetooth Mesh Network (Offline)
+### Application Layer (New — `com.bitchat.android.pazabit`)
 
-- Direct peer-to-peer within Bluetooth range, multi-hop relay through nearby devices
-- Noise Protocol sessions with forward secrecy; peer identities derived from static keys
-- Compact binary packet format with fragmentation, TTL routing, and deduplication
-- Adaptive duty cycling and connection limits for battery efficiency
-- Foreground service keeps the mesh alive within Android background execution limits
+| Module | Responsibility |
+|---|---|
+| `domain/SafetyEvent.kt` | Sealed event types (Report, Vote, Escalation, GroupCreated) + `SafetyReport` view model |
+| `protocol/PazabitEventCodec.kt` | Versioned binary encode/decode (DataOutputStream/InputStream) for mesh packets |
+| `protocol/PazabitEventBus.kt` | In-process SharedFlow bridging `PacketProcessor` → `SafetyRepository` |
+| `data/SafetyRepository.kt` | Local state (StateFlow<List<SafetyReport>>), event application, outbound send via `MeshService.sendPazabitEvent()` |
+| `ui/PazabitScreen.kt` + `PazabitViewModel.kt` | Compose UI + MVVM; flag selector, group chips, vote rows, escalation button, create-group dialog |
 
-### Nostr Protocol (Internet)
+### Mesh Transport Layer (Inherited — Unmodified Core)
 
-- Global reach via public relays, geohash-based location channels
-- Private messages fall back to Nostr for mutual favorites when the mesh is unavailable
-- Ephemeral keys per geohash area
+- **Bluetooth LE Mesh**: Direct peer-to-peer, multi-hop relay (max 7 hops), adaptive duty cycling, connection limits
+- **Wi-Fi Aware Transport**: Higher-bandwidth local mesh on supported devices
+- **Noise Protocol**: XX pattern, X25519 + ChaCha20-Poly1305, forward secrecy, static-key identities
+- **Packet Format**: Compact binary with fragmentation, TTL routing, deduplication
+- **Foreground Service**: `MeshForegroundService` keeps mesh alive within Android background limits
+- **Transport Selection**: `UnifiedMeshService` chooses BLE vs Wi-Fi Aware automatically
+
+### Integration Points (Minimal)
+
+- `MeshService` interface + implementations (`BluetoothMeshService`, `MeshCore`, `UnifiedMeshService`) expose `sendPazabitEvent(payload: ByteArray)`
+- `PacketProcessor.handlePazabitEvent()` decodes inbound packets via `PazabitEventCodec` and publishes to `PazabitEventBus`
+- `MainActivity` instantiates `PazabitViewModel` with `unifiedMeshService` and renders `PazabitScreen` after onboarding
 
 ### Android Stack
 
 - Kotlin, Jetpack Compose (Material 3), MVVM
 - Coroutines and Flow for all networking and state
-- Core components: `MeshForegroundService` (persistent connectivity), `BluetoothMeshService` / `WifiAwareMeshService` (transports), `UnifiedMeshService` (transport selection), `NoiseSessionManager` (encryption sessions), `MessageRouter` (mesh/Nostr routing with outbox retry)
+- Core components reused: `MeshForegroundService`, `BluetoothMeshService` / `WifiAwareMeshService`, `UnifiedMeshService`, `NoiseSessionManager`, `PacketProcessor` (extended for Pazabit event type)
 
 ## Building
 
@@ -103,3 +103,7 @@ and public GitHub/Google Play verification procedures.
 ```
 
 Note that BLE mesh behavior is difficult to emulate; protocol and session logic is covered by unit tests, while radio-level behavior needs real devices.
+
+---
+
+*This variant is a fork of the [bitchat Android](https://github.com/permissionlesstech/bitchat-android) codebase, retaining its mesh networking core while replacing the messaging UI and data model with a threat-reporting workflow. The original bitchat messaging, Nostr, geohash globe, and channel-chat code remains in the repository but is no longer wired into the main UI.*
